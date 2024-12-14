@@ -13,11 +13,21 @@ from sklearn.utils import resample
 from sklearn.cluster import KMeans
 import shap 
 
-#Load Dataset Dynamically
-file_name = "heart_disease_cleaned.csv"
-if not os.path.exists(file_name):
-    raise FileNotFoundError(f"Dataset '{file_name}' not found in the current directory.")
-heart_disease_data = pd.read_csv(file_name)
+# Dynamically determine the script's directory
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Define the dataset file path relative to the script's directory
+file_name = 'heart_disease_cleaned.csv'
+file_path = os.path.join(script_dir, file_name)
+
+# Check if the file exists
+if not os.path.isfile(file_path):
+    raise FileNotFoundError(f"Dataset '{file_name}' not found in the script directory: {script_dir}")
+
+# Load the dataset
+print(f"Loading dataset from: {file_path}")
+
+heart_disease_data = pd.read_csv(file_path)
 
 #Data Preparation
 # Separate features (X) and target (y)
@@ -81,15 +91,29 @@ for name, model in models.items():
     
     # Step 4: SHAP for Model Interpretability
     if name == "Random Forest":  # Example for Random Forest
+        # Ensure the transformed dataset is used
+        X_test_transformed = pipeline.named_steps['preprocessor'].transform(X_test)
+
+        # SHAP values calculation for Random Forest
         explainer = shap.TreeExplainer(pipeline.named_steps['model'])
-        shap_values = explainer.shap_values(pipeline.named_steps['preprocessor'].transform(X_test))
-        shap.summary_plot(shap_values, X_test, plot_type="bar")
+        shap_values = explainer.shap_values(X_test_transformed)
+        
+        # Ensure the correct dataset is passed to summary_plot
+        feature_names = pipeline.named_steps['preprocessor'].get_feature_names_out()
+        shap.summary_plot(shap_values, pd.DataFrame(X_test_transformed, columns=feature_names), plot_type="bar")
+
 
 # Step 5: Unsupervised Learning
 # Dimensionality Reduction (Optional)
 from sklearn.decomposition import PCA
 pca = PCA(n_components=2)
-X_train_pca = pca.fit_transform(X_train)
+
+# Preprocess the data before PCA
+X_train_transformed = preprocessor.transform(X_train)
+
+# Apply PCA on the preprocessed data
+X_train_pca = pca.fit_transform(X_train_transformed)
+
 
 # K-Means Clustering
 pipeline_kmeans = Pipeline([
